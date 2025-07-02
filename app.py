@@ -52,10 +52,6 @@ def process_excel_file(filepath):
         custom_remaining = df_custom.drop(columns=['Date', 'Reference No'])
         items_remaining = df_items.drop(columns=['Date', 'Invoice No./Txn No.'])
 
-        # Add prefixes to distinguish columns
-        custom_remaining.columns = [f'Custom_{col}' for col in custom_remaining.columns]
-        items_remaining.columns = [f'Items_{col}' for col in items_remaining.columns]
-
         # Add Ref_No and date back for merging
         custom_remaining['Ref_No'] = df_custom['Reference No']
         custom_remaining['date'] = df_custom['Date']

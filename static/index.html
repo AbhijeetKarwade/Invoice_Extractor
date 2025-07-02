@@ -696,10 +696,10 @@
                     tr.appendChild(td);
                     
                     // Sum quantities and amounts
-                    if (header === 'Items_Quantity') {
+                    if (header === 'Quantity') {
                         totalQuantity += parseFloat(row[header]) || 0;
                     }
-                    if (header === 'Items_Amount') {
+                    if (header === 'Amount') {
                         totalAmount += parseFloat(row[header]) || 0;
                     }
                 });
@@ -707,10 +707,10 @@
             });
 
             // Add summary rows if we have quantity and amount columns
-            if (displayColumns.includes('Items_Quantity') && displayColumns.includes('Items_Amount')) {
+            if (displayColumns.includes('Quantity') && displayColumns.includes('Amount')) {
                 // Find column indices for quantity and amount
-                const qtyIndex = displayColumns.indexOf('Items_Quantity');
-                const amtIndex = displayColumns.indexOf('Items_Amount');
+                const qtyIndex = displayColumns.indexOf('Quantity');
+                const amtIndex = displayColumns.indexOf('Amount');
                 
                 // Total row
                 const totalRow = document.createElement('tr');
@@ -729,9 +729,9 @@
                 displayColumns.forEach((header, index) => {
                     const td = document.createElement('td');
                     
-                    if (header === 'Items_Quantity') {
+                    if (header === 'Quantity') {
                         td.textContent = totalQuantity.toFixed(2);
-                    } else if (header === 'Items_Amount') {
+                    } else if (header === 'Amount') {
                         td.textContent = totalAmount.toFixed(2);
                     } else {
                         td.textContent = '';
@@ -765,11 +765,11 @@
                 const tdDesc = document.createElement('td');
                 tdDesc.colSpan = displayColumns.length + 2;
                 let customDescriptionText = '';
-                const firstWithDescription = filteredData.find(row => row['Custom_Description']);
+                const firstWithDescription = filteredData.find(row => row['Description_x']);
                 if (firstWithDescription) {
-                    customDescriptionText = firstWithDescription['Custom_Description'];
+                    customDescriptionText = firstWithDescription['Description_x'];
                 }
-                tdDesc.textContent = `Custom_Description: ${customDescriptionText}`;
+                tdDesc.textContent = `Description: ${customDescriptionText}`;
                 descRow.appendChild(tdDesc);
                 
                 tbody.appendChild(descRow);
@@ -917,7 +917,7 @@
             }
 
             const groupedByParty = filteredData.reduce((acc, row) => {
-                const party = row['Party Name'] || 'Other';
+                const party = row['	Party Name_y'] || 'Other';
                 if (!acc[party]) acc[party] = [];
                 acc[party].push(row);
                 return acc;
@@ -970,11 +970,11 @@
             const displayColumns = selectedColumns.length > 0 ? selectedColumns : headers;
             
             // Find the first row with Items_Party Name
-            const partyRow = dataToPrint.find(row => row['Items_Party Name']);
+            const partyRow = dataToPrint.find(row => row['Party Name_y']);
             let partyInfo = { name: '', mobile: '' };
             
             if (partyRow) {
-                const partyString = partyRow['Items_Party Name'];
+                const partyString = partyRow['Party Name_y'];
                 // Extract name and mobile
                 const mobileMatch = partyString.match(/\d{10}/);
                 partyInfo.mobile = mobileMatch ? mobileMatch[0] : '';
