@@ -1,5 +1,5 @@
 flask==3.0.3
-pandas==1.5.3  # Older, stable version
+pandas==1.5.3
 openpyxl==3.1.5
 gunicorn==23.0.0
 werkzeug==3.0.4

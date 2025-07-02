@@ -5,9 +5,9 @@ services:
     region: oregon
     plan: free
     branch: main
-    buildCommand: pip install -r requirements.txt
+    buildCommand: bash render-build.sh
     startCommand: gunicorn app:app
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13.5  # Changed from 3.13.5
+        value: 3.10.8
