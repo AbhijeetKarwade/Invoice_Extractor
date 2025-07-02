@@ -95,7 +95,6 @@
             // Extract name by removing the mobile part and parentheses
             let name = partyString.replace(/\(.*\d{10}.*\)/, '').trim();
             if (!name) {
-                // If name is empty after removal, use the full string without mobile
                 name = partyString.replace(/\d{10}/, '').replace(/[()]/g, '').trim();
             }
             
@@ -175,8 +174,8 @@
                 
                 columnsToShow.forEach(column => {
                     const td = document.createElement('td');
-                    // Special handling for Items_Party Name to remove mobile if needed
-                    if (column === 'Items_Party Name' && row[column]) {
+                    // Special handling for Party Name to remove mobile if needed
+                    if (column === 'Party Name' && row[column]) {
                         const info = extractPartyInfo(row[column]);
                         td.textContent = `${info.name} (${info.mobile})`;
                     } else {
@@ -184,10 +183,10 @@
                     }
                     
                     // Sum quantities and amounts
-                    if (column === 'Items_Quantity') {
+                    if (column === 'Quantity') {
                         totalQuantity += parseFloat(row[column]) || 0;
                     }
-                    if (column === 'Items_Amount') {
+                    if (column === 'Amount') {
                         totalAmount += parseFloat(row[column]) || 0;
                     }
                     
@@ -197,7 +196,7 @@
             });
 
             // Add summary rows if we have quantity and amount columns
-            if (columnsToShow.includes('Items_Quantity') && columnsToShow.includes('Items_Amount')) {
+            if (columnsToShow.includes('Quantity') && columnsToShow.includes('Amount')) {
                 // Total row
                 const totalRow = document.createElement('tr');
                 totalRow.className = 'total-row';
@@ -208,8 +207,8 @@
                 totalRow.appendChild(tdTotalLabel);
                 
                 // Find positions of quantity and amount columns
-                const qtyIndex = columnsToShow.indexOf('Items_Quantity') + 1; // +1 for the # column
-                const amtIndex = columnsToShow.indexOf('Items_Amount') + 1;
+                const qtyIndex = columnsToShow.indexOf('Quantity') + 1;
+                const amtIndex = columnsToShow.indexOf('Amount') + 1;
                 
                 // Add empty cells until quantity column
                 for (let i = 1; i < qtyIndex; i++) {
@@ -242,7 +241,7 @@
                 subTotalRow.className = 'subtotal-row';
                 
                 const tdSubTotalLabel = document.createElement('td');
-                tdSubTotalLabel.colSpan = columnsToShow.length; // Span all columns
+                tdSubTotalLabel.colSpan = columnsToShow.length;
                 tdSubTotalLabel.textContent = 'Sub Total';
                 tdSubTotalLabel.style.textAlign = 'right';
                 subTotalRow.appendChild(tdSubTotalLabel);
@@ -258,14 +257,13 @@
                 descRow.className = 'description-row';
                 
                 const tdDesc = document.createElement('td');
-                tdDesc.colSpan = columnsToShow.length + 1; // Span all columns including #
+                tdDesc.colSpan = columnsToShow.length + 1;
                 let customDescriptionText = '';
-                const firstWithDescription = filteredData.find(row => row['Custom_Description']);
+                const firstWithDescription = filteredData.find(row => row['Description']);
                 if (firstWithDescription) {
-                    customDescriptionText = firstWithDescription['Custom_Description'];
+                    customDescriptionText = firstWithDescription['Description'];
                 }
-                tdDesc.textContent = `Custom_Description: ${customDescriptionText}`;
-
+                tdDesc.textContent = `Description: ${customDescriptionText}`;
                 descRow.appendChild(tdDesc);
                 
                 tbody.appendChild(descRow);
@@ -275,7 +273,7 @@
                 finalTotalRow.className = 'final-total-row';
                 
                 const tdFinalTotalLabel = document.createElement('td');
-                tdFinalTotalLabel.colSpan = columnsToShow.length; // Span all columns
+                tdFinalTotalLabel.colSpan = columnsToShow.length;
                 tdFinalTotalLabel.textContent = 'Total';
                 tdFinalTotalLabel.style.textAlign = 'right';
                 finalTotalRow.appendChild(tdFinalTotalLabel);
