@@ -966,72 +966,73 @@
         });
 
         // Prepare data and open print view
-        function prepareAndOpenPrintView(dataToPrint) {
-            const displayColumns = selectedColumns.length > 0 ? selectedColumns : headers;
+            function prepareAndOpenPrintView(dataToPrint) {
+        const displayColumns = selectedColumns.length > 0 ? selectedColumns : headers;
+        
+        // Find the first row with Party Name
+        const partyRow = dataToPrint.find(row => row['Party Name_y']);
+        let partyInfo = { name: '', mobile: '' };
+        
+        if (partyRow) {
+            const partyString = partyRow['Party Name_y'];
+            // Extract name and mobile
+            const mobileMatch = partyString.match(/\d{10}/);
+            partyInfo.mobile = mobileMatch ? mobileMatch[0] : '';
             
-            // Find the first row with Items_Party Name
-            const partyRow = dataToPrint.find(row => row['Party Name_y']);
-            let partyInfo = { name: '', mobile: '' };
-            
-            if (partyRow) {
-                const partyString = partyRow['Party Name_y'];
-                // Extract name and mobile
-                const mobileMatch = partyString.match(/\d{10}/);
-                partyInfo.mobile = mobileMatch ? mobileMatch[0] : '';
-                
-                // Extract name by removing the mobile part and parentheses
-                partyInfo.name = partyString.replace(/\(.*\d{10}.*\)/, '').trim();
-                if (!partyInfo.name) {
-                    // If name is empty after removal, use the full string without mobile
-                    partyInfo.name = partyString.replace(/\d{10}/, '').replace(/[()]/g, '').trim();
-                }
+            // Extract name by removing the mobile part and parentheses
+            partyInfo.name = partyString.replace(/\(.*\d{10}.*\)/, '').trim();
+            if (!partyInfo.name) {
+                // If name is empty after removal, use the full string without mobile
+                partyInfo.name = partyString.replace(/\d{10}/, '').replace(/[()]/g, '').trim();
             }
-            
-            // Get date range from the date filter inputs
-            const dateRange = { from: '', to: '' };
-            const dateFromInput = document.getElementById('dateFrom');
-            const dateToInput = document.getElementById('dateTo');
-            
-            if (dateFromInput.value || dateToInput.value) {
-                if (dateFromInput.value) {
-                    const [y, m, d] = dateFromInput.value.split('-');
-                    dateRange.from = `${d}/${m}/${y}`;
-                }
-                if (dateToInput.value) {
-                    const [y, m, d] = dateToInput.value.split('-');
-                    dateRange.to = `${d}/${m}/${y}`;
-                }
-            } else {
-                // If no date filter is applied, show the min and max dates from the data
-                const dates = dataToPrint.map(row => {
-                    if (row.date) {
-                        const [d, m, y] = row.date.split('/');
-                        return new Date(`${y}-${m}-${d}`);
-                    }
-                    return null;
-                }).filter(date => date);
-                
-                if (dates.length > 0) {
-                    const minDate = new Date(Math.min(...dates));
-                    const maxDate = new Date(Math.max(...dates));
-                    
-                    dateRange.from = `${String(minDate.getDate()).padStart(2, '0')}/${String(minDate.getMonth() + 1).padStart(2, '0')}/${minDate.getFullYear()}`;
-                    dateRange.to = `${String(maxDate.getDate()).padStart(2, '0')}/${String(maxDate.getMonth() + 1).padStart(2, '0')}/${maxDate.getFullYear()}`;
-                }
-            }
-            
-            sessionStorage.setItem('filteredData', JSON.stringify(dataToPrint));
-            sessionStorage.setItem('columnsToShow', JSON.stringify(displayColumns));
-            sessionStorage.setItem('dateRange', JSON.stringify(dateRange));
-            sessionStorage.setItem('partyInfo', JSON.stringify(partyInfo));
-            
-            setTimeout(() => {
-                const printWindow = window.open('/print', '_blank');
-                if (!printWindow) {
-                    alert('Popup blocked. Please allow popups for this site.');
-                }
-            }, 100);
         }
+        
+        // Get date range from the date filter inputs
+        const dateRange = { from: '', to: '' };
+        const dateFromInput = document.getElementById('dateFrom');
+        const dateToInput = document.getElementById('dateTo');
+        
+        if (dateFromInput.value || dateToInput.value) {
+            if (dateFromInput.value) {
+                const [y, m, d] = dateFromInput.value.split('-');
+                dateRange.from = `${d}/${m}/${y}`;
+            }
+            if (dateToInput.value) {
+                const [y, m, d] = dateToInput.value.split('-');
+                dateRange.to = `${d}/${m}/${y}`;
+            }
+        } else {
+            // If no date filter is applied, show the min and max dates from the data
+            const dates = dataToPrint.map(row => {
+                if (row.date) {
+                    const [d, m, y] = row.date.split('/');
+                    return new Date(`${y}-${m}-${d}`);
+                }
+                return null;
+            }).filter(date => date);
+            
+            if (dates.length > 0) {
+                const minDate = new Date(Math.min(...dates));
+                const maxDate = new Date(Math.max(...dates));
+                
+                dateRange.from = `${String(minDate.getDate()).padStart(2, '0')}/${String(minDate.getMonth() + 1).padStart(2, '0')}/${minDate.getFullYear()}`;
+                dateRange.to = `${String(maxDate.getDate()).padStart(2, '0')}/${String(maxDate.getMonth() + 1).padStart(2, '0')}/${maxDate.getFullYear()}`;
+            }
+        }
+        
+        // Store additional data needed for the new print format
+        sessionStorage.setItem('filteredData', JSON.stringify(dataToPrint));
+        sessionStorage.setItem('columnsToShow', JSON.stringify(displayColumns));
+        sessionStorage.setItem('dateRange', JSON.stringify(dateRange));
+        sessionStorage.setItem('partyInfo', JSON.stringify(partyInfo));
+        
+        setTimeout(() => {
+            const printWindow = window.open('/print', '_blank');
+            if (!printWindow) {
+                alert('Popup blocked. Please allow popups for this site.');
+            }
+        }, 100);
+    }
     </script>
 </body>
 </html>
