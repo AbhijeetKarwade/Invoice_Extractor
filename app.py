@@ -40,6 +40,19 @@ def process_excel_file(filepath):
         df_custom.columns = df_custom.columns.str.strip()
         df_items.columns = df_items.columns.str.strip()
 
+        # Function to remove empty columns
+        def remove_empty_columns(df):
+            # Check which columns are completely empty (all NaN or empty strings)
+            empty_cols = [col for col in df.columns 
+                         if df[col].isna().all() or (df[col].astype(str).str.strip().eq('').all())]
+            # Drop empty columns
+            return df.drop(columns=empty_cols)
+
+        # Remove empty columns from both dataframes
+        df_custom = remove_empty_columns(df_custom)
+        df_items = remove_empty_columns(df_items)
+
+        # Rest of the existing processing code remains the same...
         # Select key columns and rename for consistency
         df_custom_key = df_custom[['Date', 'Reference No']].rename(columns={'Date': 'date', 'Reference No': 'Ref_No'})
         df_items_key = df_items[['Date', 'Invoice No./Txn No.']].rename(columns={'Date': 'date', 'Invoice No./Txn No.': 'Ref_No'})

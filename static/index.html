@@ -170,15 +170,20 @@
         .subtotal-row td {
             font-weight: bold;
             background-color: #e0e0e0;
+            text-align: right;
         }
         .final-total-row td {
             font-weight: bold;
             background-color: #d0d0d0;
+            text-align: right;
         }
         .description-row td {
             font-style: italic;
             color: #666;
             font-family: "Calibri", "Calibri Body", sans-serif;
+        }
+        .amount-column {
+            text-align: right;
         }
         
         /* Selected row style */
@@ -663,10 +668,11 @@
             const tbody = document.createElement('tbody');
             const rowsToShow = showingAllRows ? filteredData : filteredData.slice(0, 5);
             
-            // Calculate totals
+            // Calculate totals for the visible rows
             let totalQuantity = 0;
             let totalAmount = 0;
-            
+            let totalReceived = 0;
+
             rowsToShow.forEach((row, index) => {
                 const tr = document.createElement('tr');
                 tr.dataset.index = index;
@@ -692,7 +698,12 @@
                 
                 displayColumns.forEach(header => {
                     const td = document.createElement('td');
-                    td.textContent = row[header] || '';
+                    if (header === 'Amount' || header === 'Received') {
+                        td.className = 'amount-column';
+                        td.textContent = row[header] ? parseFloat(row[header]).toFixed(2) : '0.00';
+                    } else {
+                        td.textContent = row[header] || '';
+                    }
                     tr.appendChild(td);
                     
                     // Sum quantities and amounts
@@ -702,17 +713,61 @@
                     if (header === 'Amount') {
                         totalAmount += parseFloat(row[header]) || 0;
                     }
+                    if (header === 'Received') {
+                        totalReceived += parseFloat(row[header]) || 0;
+                    }
                 });
                 tbody.appendChild(tr);
             });
 
-            // Add summary rows if we have quantity and amount columns
-            if (displayColumns.includes('Quantity') && displayColumns.includes('Amount')) {
-                // Find column indices for quantity and amount
-                const qtyIndex = displayColumns.indexOf('Quantity');
-                const amtIndex = displayColumns.indexOf('Amount');
+            // Group transactions by Ref_No for running balance calculation
+            const transactions = {};
+            filteredData.forEach(row => {
+                const refNo = row['Ref_No'] || 'Opening Balance';
+                if (!transactions[refNo]) {
+                    transactions[refNo] = {
+                        date: row['date'],
+                        type: row['Txn Type'] || 'Sale',
+                        refNo: refNo,
+                        total: 0,
+                        received: 0,
+                        balance: 0
+                    };
+                }
                 
-                // Total row
+                transactions[refNo].total += parseFloat(row['Amount'] || 0);
+                transactions[refNo].received += parseFloat(row['Received'] || 0);
+                transactions[refNo].balance = transactions[refNo].total - transactions[refNo].received;
+            });
+
+            // Calculate opening balance and running balance
+            let openingBalance = 0;
+            if (transactions['Opening Balance']) {
+                openingBalance = transactions['Opening Balance'].balance;
+                delete transactions['Opening Balance'];
+            }
+
+            const sortedTransactions = Object.values(transactions).sort((a, b) => {
+                const dateA = a.date ? new Date(a.date.split('/').reverse().join('/')) : new Date(0);
+                const dateB = b.date ? new Date(b.date.split('/').reverse().join('/')) : new Date(0);
+                return dateA - dateB;
+            });
+
+            let runningBalance = openingBalance;
+            let grandTotal = runningBalance;
+            
+            sortedTransactions.forEach(txn => {
+                runningBalance += txn.balance;
+                grandTotal = runningBalance;
+            });
+
+            // Add summary rows if we have quantity, amount, or received columns
+            const hasQuantity = displayColumns.includes('Quantity');
+            const hasAmount = displayColumns.includes('Amount');
+            const hasReceived = displayColumns.includes('Received');
+
+            if (hasQuantity || hasAmount || hasReceived) {
+                // Total row for Quantity, Amount, Received
                 const totalRow = document.createElement('tr');
                 totalRow.className = 'total-row';
                 
@@ -726,13 +781,17 @@
                 totalRow.appendChild(tdNum);
                 
                 // Add cells for each column
-                displayColumns.forEach((header, index) => {
+                displayColumns.forEach(header => {
                     const td = document.createElement('td');
                     
                     if (header === 'Quantity') {
                         td.textContent = totalQuantity.toFixed(2);
                     } else if (header === 'Amount') {
+                        td.className = 'amount-column';
                         td.textContent = totalAmount.toFixed(2);
+                    } else if (header === 'Received') {
+                        td.className = 'amount-column';
+                        td.textContent = totalReceived.toFixed(2);
                     } else {
                         td.textContent = '';
                     }
@@ -741,53 +800,51 @@
                 });
                 
                 tbody.appendChild(totalRow);
+            }
+
+            // Description row
+            const descRow = document.createElement('tr');
+            descRow.className = 'description-row';
+            const descCell = document.createElement('td');
+            descCell.colSpan = displayColumns.length + 2;
+            let customDescriptionText = '';
+            const firstWithDescription = filteredData.find(row => row['Description_x']);
+            if (firstWithDescription) {
+                customDescriptionText = firstWithDescription['Description_x'];
+            }
+            descCell.textContent = `Description: ${customDescriptionText}`;
+            descRow.appendChild(descCell);
+            tbody.appendChild(descRow);
+
+            // Sub Total row (running balance)
+            if (hasAmount && hasReceived) {
+                const subtotalRow = document.createElement('tr');
+                subtotalRow.className = 'subtotal-row';
+                const subtotalCell = document.createElement('td');
+                subtotalCell.colSpan = displayColumns.length + 1;
+                subtotalCell.textContent = 'Sub Total:';
+                subtotalRow.appendChild(subtotalCell);
                 
-                // Sub Total row
-                const subTotalRow = document.createElement('tr');
-                subTotalRow.className = 'subtotal-row';
-                
-                const tdSubTotalLabel = document.createElement('td');
-                tdSubTotalLabel.colSpan = displayColumns.length + 2; // Span all columns including # and checkbox
-                tdSubTotalLabel.textContent = 'Sub Total';
-                tdSubTotalLabel.style.textAlign = 'right';
-                subTotalRow.appendChild(tdSubTotalLabel);
-                
-                const tdSubTotalValue = document.createElement('td');
-                tdSubTotalValue.textContent = totalAmount.toFixed(2);
-                subTotalRow.appendChild(tdSubTotalValue);
-                
-                tbody.appendChild(subTotalRow);
-                
-                // Description row
-                const descRow = document.createElement('tr');
-                descRow.className = 'description-row';
-                
-                const tdDesc = document.createElement('td');
-                tdDesc.colSpan = displayColumns.length + 2;
-                let customDescriptionText = '';
-                const firstWithDescription = filteredData.find(row => row['Description_x']);
-                if (firstWithDescription) {
-                    customDescriptionText = firstWithDescription['Description_x'];
-                }
-                tdDesc.textContent = `Description: ${customDescriptionText}`;
-                descRow.appendChild(tdDesc);
-                
-                tbody.appendChild(descRow);
-                
-                // Final Total row
+                const subtotalValueCell = document.createElement('td');
+                subtotalValueCell.className = 'amount-column';
+                subtotalValueCell.textContent = grandTotal.toFixed(2);
+                subtotalRow.appendChild(subtotalValueCell);
+                tbody.appendChild(subtotalRow);
+            }
+
+            // Final Total row (same as Sub Total in this case)
+            if (hasAmount && hasReceived) {
                 const finalTotalRow = document.createElement('tr');
                 finalTotalRow.className = 'final-total-row';
+                const finalTotalCell = document.createElement('td');
+                finalTotalCell.colSpan = displayColumns.length + 1;
+                finalTotalCell.textContent = 'Total:';
+                finalTotalRow.appendChild(finalTotalCell);
                 
-                const tdFinalTotalLabel = document.createElement('td');
-                tdFinalTotalLabel.colSpan = displayColumns.length + 2; // Span all columns including # and checkbox
-                tdFinalTotalLabel.textContent = 'Total';
-                tdFinalTotalLabel.style.textAlign = 'right';
-                finalTotalRow.appendChild(tdFinalTotalLabel);
-                
-                const tdFinalTotalValue = document.createElement('td');
-                tdFinalTotalValue.textContent = totalAmount.toFixed(2);
-                finalTotalRow.appendChild(tdFinalTotalValue);
-                
+                const finalTotalValueCell = document.createElement('td');
+                finalTotalValueCell.className = 'amount-column';
+                finalTotalValueCell.textContent = grandTotal.toFixed(2);
+                finalTotalRow.appendChild(finalTotalValueCell);
                 tbody.appendChild(finalTotalRow);
             }
             
@@ -871,13 +928,41 @@
                 });
             } else {
                 const searchTerm = document.getElementById('nameSearchInput').value;
-                filteredData = originalData.filter(row => 
+                filteredData = originalData.filter(row =>
                     row[column] && row[column].toString() === searchTerm
                 );
-                // Hide date range indicator when not using date filter
+
+                // Remove blank/empty columns and columns with all zeros from filtered data
+                const nonEmptyColumns = new Set();
+                
+                // First, find all columns that have at least one non-empty/non-zero value
+                headers.forEach(header => {
+                    const hasData = filteredData.some(row => {
+                        const value = row[header];
+                        return value !== null && 
+                               value !== undefined && 
+                               value.toString().trim() !== '' && 
+                               value !== 0 && 
+                               value !== '0';
+                    });
+                    
+                    if (hasData) {
+                        nonEmptyColumns.add(header);
+                    }
+                });
+
+                // Update selected columns to only include non-empty and non-zero ones
+                selectedColumns = headers.filter(header => nonEmptyColumns.has(header));
+                
+                // Update the column select dropdown to reflect the new selection
+                const columnSelect = document.getElementById('columnSelect');
+                Array.from(columnSelect.options).forEach(option => {
+                    option.selected = selectedColumns.includes(option.value);
+                });
+                
                 document.getElementById('dateRangeActive').classList.add('hidden');
             }
-            
+
             currentSortColumn = null;
             sortDirection = 'asc';
             showingAllRows = false;
@@ -917,7 +1002,7 @@
             }
 
             const groupedByParty = filteredData.reduce((acc, row) => {
-                const party = row['	Party Name_y'] || 'Other';
+                const party = row['Party Name_y'] || 'Other';
                 if (!acc[party]) acc[party] = [];
                 acc[party].push(row);
                 return acc;
@@ -966,73 +1051,73 @@
         });
 
         // Prepare data and open print view
-            function prepareAndOpenPrintView(dataToPrint) {
-        const displayColumns = selectedColumns.length > 0 ? selectedColumns : headers;
-        
-        // Find the first row with Party Name
-        const partyRow = dataToPrint.find(row => row['Party Name_y']);
-        let partyInfo = { name: '', mobile: '' };
-        
-        if (partyRow) {
-            const partyString = partyRow['Party Name_y'];
-            // Extract name and mobile
-            const mobileMatch = partyString.match(/\d{10}/);
-            partyInfo.mobile = mobileMatch ? mobileMatch[0] : '';
+        function prepareAndOpenPrintView(dataToPrint) {
+            const displayColumns = selectedColumns.length > 0 ? selectedColumns : headers;
             
-            // Extract name by removing the mobile part and parentheses
-            partyInfo.name = partyString.replace(/\(.*\d{10}.*\)/, '').trim();
-            if (!partyInfo.name) {
-                // If name is empty after removal, use the full string without mobile
-                partyInfo.name = partyString.replace(/\d{10}/, '').replace(/[()]/g, '').trim();
-            }
-        }
-        
-        // Get date range from the date filter inputs
-        const dateRange = { from: '', to: '' };
-        const dateFromInput = document.getElementById('dateFrom');
-        const dateToInput = document.getElementById('dateTo');
-        
-        if (dateFromInput.value || dateToInput.value) {
-            if (dateFromInput.value) {
-                const [y, m, d] = dateFromInput.value.split('-');
-                dateRange.from = `${d}/${m}/${y}`;
-            }
-            if (dateToInput.value) {
-                const [y, m, d] = dateToInput.value.split('-');
-                dateRange.to = `${d}/${m}/${y}`;
-            }
-        } else {
-            // If no date filter is applied, show the min and max dates from the data
-            const dates = dataToPrint.map(row => {
-                if (row.date) {
-                    const [d, m, y] = row.date.split('/');
-                    return new Date(`${y}-${m}-${d}`);
-                }
-                return null;
-            }).filter(date => date);
+            // Find the first row with Party Name
+            const partyRow = dataToPrint.find(row => row['Party Name_y']);
+            let partyInfo = { name: '', mobile: '' };
             
-            if (dates.length > 0) {
-                const minDate = new Date(Math.min(...dates));
-                const maxDate = new Date(Math.max(...dates));
+            if (partyRow) {
+                const partyString = partyRow['Party Name_y'];
+                // Extract name and mobile
+                const mobileMatch = partyString.match(/\d{10}/);
+                partyInfo.mobile = mobileMatch ? mobileMatch[0] : '';
                 
-                dateRange.from = `${String(minDate.getDate()).padStart(2, '0')}/${String(minDate.getMonth() + 1).padStart(2, '0')}/${minDate.getFullYear()}`;
-                dateRange.to = `${String(maxDate.getDate()).padStart(2, '0')}/${String(maxDate.getMonth() + 1).padStart(2, '0')}/${maxDate.getFullYear()}`;
+                // Extract name by removing the mobile part and parentheses
+                partyInfo.name = partyString.replace(/\(.*\d{10}.*\)/, '').trim();
+                if (!partyInfo.name) {
+                    // If name is empty after removal, use the full string without mobile
+                    partyInfo.name = partyString.replace(/\d{10}/, '').replace(/[()]/g, '').trim();
+                }
             }
+            
+            // Get date range from the date filter inputs
+            const dateRange = { from: '', to: '' };
+            const dateFromInput = document.getElementById('dateFrom');
+            const dateToInput = document.getElementById('dateTo');
+            
+            if (dateFromInput.value || dateToInput.value) {
+                if (dateFromInput.value) {
+                    const [y, m, d] = dateFromInput.value.split('-');
+                    dateRange.from = `${d}/${m}/${y}`;
+                }
+                if (dateToInput.value) {
+                    const [y, m, d] = dateToInput.value.split('-');
+                    dateRange.to = `${d}/${m}/${y}`;
+                }
+            } else {
+                // If no date filter is applied, show the min and max dates from the data
+                const dates = dataToPrint.map(row => {
+                    if (row.date) {
+                        const [d, m, y] = row.date.split('/');
+                        return new Date(`${y}-${m}-${d}`);
+                    }
+                    return null;
+                }).filter(date => date);
+                
+                if (dates.length > 0) {
+                    const minDate = new Date(Math.min(...dates));
+                    const maxDate = new Date(Math.max(...dates));
+                    
+                    dateRange.from = `${String(minDate.getDate()).padStart(2, '0')}/${String(minDate.getMonth() + 1).padStart(2, '0')}/${minDate.getFullYear()}`;
+                    dateRange.to = `${String(maxDate.getDate()).padStart(2, '0')}/${String(maxDate.getMonth() + 1).padStart(2, '0')}/${maxDate.getFullYear()}`;
+                }
+            }
+            
+            // Store additional data needed for the new print format
+            sessionStorage.setItem('filteredData', JSON.stringify(dataToPrint));
+            sessionStorage.setItem('columnsToShow', JSON.stringify(displayColumns));
+            sessionStorage.setItem('dateRange', JSON.stringify(dateRange));
+            sessionStorage.setItem('partyInfo', JSON.stringify(partyInfo));
+            
+            setTimeout(() => {
+                const printWindow = window.open('/print', '_blank');
+                if (!printWindow) {
+                    alert('Popup blocked. Please allow popups for this site.');
+                }
+            }, 100);
         }
-        
-        // Store additional data needed for the new print format
-        sessionStorage.setItem('filteredData', JSON.stringify(dataToPrint));
-        sessionStorage.setItem('columnsToShow', JSON.stringify(displayColumns));
-        sessionStorage.setItem('dateRange', JSON.stringify(dateRange));
-        sessionStorage.setItem('partyInfo', JSON.stringify(partyInfo));
-        
-        setTimeout(() => {
-            const printWindow = window.open('/print', '_blank');
-            if (!printWindow) {
-                alert('Popup blocked. Please allow popups for this site.');
-            }
-        }, 100);
-    }
     </script>
 </body>
 </html>

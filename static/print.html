@@ -10,29 +10,21 @@
             margin: 20px;
             font-size: 12pt;
         }
-        .form-container {
-            margin-bottom: 30px;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 5px;
-        }
-        .form-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-decoration: underline;
-        }
-        .form-row {
+        .header-container {
             display: flex;
-            margin-bottom: 8px;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
         }
-        .form-label {
-            min-width: 150px;
+        .header-item {
             font-weight: bold;
         }
         table { 
             width: 100%; 
             border-collapse: collapse; 
             margin-top: 10px;
+            table-layout: fixed;
         }
         th, td { 
             border: 1px solid #ddd; 
@@ -69,13 +61,6 @@
             background-color: #d0d0d0;
             text-align: right;
         }
-        .description-row td {
-            font-style: italic;
-            color: #666;
-            border-bottom: none;
-            background-color: #f9f9f9;
-            padding-left: 10px;
-        }
         .description-row-above-total td {
             font-style: italic;
             color: #666;
@@ -87,9 +72,12 @@
         .item-table {
             margin-top: 0;
             width: 100%;
+            table-layout: fixed;
         }
         .item-table th, .item-table td {
             padding: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .transaction-header {
             background-color: #e6e6e6;
@@ -98,6 +86,7 @@
         .summary-table {
             width: 100%;
             margin-top: 10px;
+            table-layout: fixed;
         }
         .summary-table td {
             border: 1px solid #ddd;
@@ -118,38 +107,67 @@
             margin-left: 0;
             margin-right: 0;
         }
+        .duration-row {
+            margin-top: 5px;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        
+        /* Define fixed column widths to match between tables */
+        #headerTable th:nth-child(1),
+        .item-table th:nth-child(1) { width: 8%; } /* Date/# */
+        #headerTable th:nth-child(2),
+        .item-table th:nth-child(2) { width: 10%; } /* Txn Type/Item name */
+        #headerTable th:nth-child(3),
+        .item-table th:nth-child(3) { width: 15%; } /* Ref No./Size */
+        #headerTable th:nth-child(4),
+        .item-table th:nth-child(4) { width: 10%; } /* Total/Quantity */
+        #headerTable th:nth-child(5),
+        .item-table th:nth-child(5) { width: 10%; } /* Received/Unit */
+        #headerTable th:nth-child(6),
+        .item-table th:nth-child(6) { width: 10%; } /* Txn Balance/Price */
+        #headerTable th:nth-child(7),
+        .item-table th:nth-child(7) { width: 12%; } /* Est. Balance/Amount */
+        
         @media print {
+            @page {
+                margin: 10mm;
+            }
             button { 
                 display: none; 
             }
             body { 
                 margin: 0; 
-                padding: 10px; 
+                padding: 0;
             }
-            .form-container {
-                border: none;
-                padding: 5px;
+            .header-container {
                 margin-bottom: 15px;
+                padding-bottom: 5px;
+            }
+            .duration-row {
+                margin-bottom: 5px;
+            }
+            #headerTable {
+                page-break-after: avoid;
+            }
+            .item-details-container {
+                padding-left: 0;
+            }
+            .item-table {
+                page-break-inside: avoid;
+            }
+            .transaction-group {
+                page-break-inside: avoid;
             }
         }
     </style>
 </head>
 <body>
-    <div class="form-container">
-        <div class="form-title">Account Statement</div>
-        <div class="form-row">
-            <div class="form-label">Party name:</div>
-            <div id="partyName"></div>
-        </div>
-        <div class="form-row">
-            <div class="form-label">Contact No.:</div>
-            <div id="contactNo"></div>
-        </div>
-        <div class="form-row">
-            <div class="form-label">Duration:</div>
-            <div id="duration"></div>
-        </div>
+    <div class="header-container">
+        <div class="header-item">Party Name: <span id="partyName"></span></div>
+        <div class="header-item">Contact No.: <span id="contactNo"></span></div>
     </div>
+    <div class="duration-row">Duration: <span id="duration"></span></div>
 
     <div id="transactionDetails">
         <table id="headerTable">
@@ -161,7 +179,7 @@
                     <th>Total</th>
                     <th>Received / Paid</th>
                     <th>Txn Balance</th>
-                    <th>Balance</th>
+                    <th>Est. Balance</th>
                 </tr>
             </thead>
             <tbody id="headerTableBody"></tbody>
@@ -178,6 +196,19 @@
     <button onclick="window.location.href='/'">Back to Home</button>
 
     <script>
+        function formatValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return 'Na';
+            }
+            
+            // Check if value is numeric
+            if (!isNaN(value) && value !== '') {
+                return parseFloat(value).toFixed(2);
+            }
+            
+            return value || 'Na';
+        }
+
         function extractPartyInfo(partyString) {
             if (!partyString) return { name: '', mobile: '' };
             
@@ -193,7 +224,7 @@
         }
 
         function formatDate(dateStr) {
-            if (!dateStr) return '';
+            if (!dateStr) return 'Na';
             return dateStr;
         }
 
@@ -203,10 +234,10 @@
             const dateRange = JSON.parse(sessionStorage.getItem('dateRange') || '{}');
             const partyInfo = JSON.parse(sessionStorage.getItem('partyInfo') || '{}');
             
-            document.getElementById('partyName').textContent = partyInfo.name || '';
-            document.getElementById('contactNo').textContent = partyInfo.mobile || '';
+            document.getElementById('partyName').textContent = partyInfo.name || 'Na';
+            document.getElementById('contactNo').textContent = partyInfo.mobile || 'Na';
             document.getElementById('duration').textContent = 
-                `From ${dateRange.from || ''} to ${dateRange.to || ''}`;
+                `From ${dateRange.from || 'Na'} to ${dateRange.to || 'Na'}`;
 
             const headerTableBody = document.getElementById('headerTableBody');
             const itemDetailsContainer = document.getElementById('itemDetailsContainer');
@@ -222,105 +253,84 @@
                 return;
             }
 
-            const transactions = {};
+            // Group transactions by date and reference number to keep them separate
+            const transactions = [];
+            const allDescriptions = [];
+            
             filteredData.forEach(row => {
-                const refNo = row['Ref_No'] || 'Opening Balance';
-                if (!transactions[refNo]) {
-                    transactions[refNo] = {
-                        date: row['date'],
-                        type: row['Txn Type'] || 'Sale',
-                        refNo: refNo,
-                        total: 0,
-                        received: 0,
-                        balance: 0,
-                        items: []
-                    };
-                }
+                transactions.push({
+                    date: row['date'],
+                    type: row['Txn Type'] || row['Type'] || 'Sale',
+                    refNo: row['Ref_No'] || 'N/A',
+                    amount: parseFloat(row['Amount'] || 0),
+                    received: parseFloat(row['Received'] || 0),
+                    balance: (parseFloat(row['Amount'] || 0) - parseFloat(row['Received'] || 0)),
+                    description: row['Description_x'],
+                    itemName: row['Item Name'],
+                    size: row['Size'],
+                    quantity: row['Quantity'],
+                    unit: row['Unit'],
+                    price: row['Price/ Unit'] || row['UnitPrice']
+                });
                 
-                if (row['Item Name'] || row['Quantity'] || row['Amount']) {
-                    transactions[refNo].items.push({
-                        name: row['Item Name'] || '',
-                        size: row['Size'] || '',
-                        quantity: row['Quantity'] || 0,
-                        unit: row['Unit'] || '',
-                        price: row['Price/ Unit'] || 0,
-                        amount: row['Amount'] || 0
-                    });
+                if (row['Description_x']) {
+                    allDescriptions.push(row['Description_x']);
                 }
-                
-                transactions[refNo].total += parseFloat(row['Amount'] || 0);
-                transactions[refNo].received += parseFloat(row['Received'] || 0);
-                transactions[refNo].balance = transactions[refNo].total - transactions[refNo].received;
             });
 
-            if (!transactions['Opening Balance']) {
-                transactions['Opening Balance'] = {
-                    date: dateRange.from || filteredData[0].date,
-                    type: 'Opening',
-                    refNo: 'Opening Balance',
-                    total: 0,
-                    received: 0,
-                    balance: 0,
-                    items: [],
-                    isOpening: true
-                };
+            let openingBalance = 0;
+            // Check if there's an opening balance row
+            const openingBalanceRow = filteredData.find(row => row['Ref_No'] === 'Opening Balance');
+            if (openingBalanceRow) {
+                openingBalance = parseFloat(openingBalanceRow['Amount'] || 0) - parseFloat(openingBalanceRow['Received'] || 0);
             }
 
-            const sortedTransactions = Object.values(transactions).sort((a, b) => {
+            // Sort transactions by date
+            transactions.sort((a, b) => {
                 const dateA = a.date ? new Date(a.date.split('/').reverse().join('/')) : new Date(0);
                 const dateB = b.date ? new Date(b.date.split('/').reverse().join('/')) : new Date(0);
                 return dateA - dateB;
             });
 
-            let runningBalance = 0;
-            let grandTotal = 0;
-            const allDescriptions = [];
+            let runningBalance = openingBalance;
+            let grandTotal = runningBalance;
             
-            sortedTransactions.forEach(txn => {
+            // Add opening balance row if exists
+            if (openingBalance !== 0) {
+                const openingRow = document.createElement('tr');
+                openingRow.innerHTML = `
+                    <td>Opening Balance</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>${Math.abs(openingBalance).toFixed(2)}</td>
+                    <td>0.00</td>
+                    <td>${openingBalance.toFixed(2)}</td>
+                    <td>${openingBalance.toFixed(2)}</td>
+                `;
+                headerTableBody.appendChild(openingRow);
+            }
+            
+            // Add each transaction as a separate row
+            transactions.forEach(txn => {
+                if (txn.refNo === 'Opening Balance') return; // Skip opening balance if it was already added
+                
                 runningBalance += txn.balance;
                 grandTotal = runningBalance;
                 
-                // Add description row BEFORE transaction data if it exists
-                const description = filteredData.find(row => row['Ref_No'] === txn.refNo && row['Description_x']);
-                if (description) {
-                    allDescriptions.push(description['Description_x']);
-                    
-                    const descRow = document.createElement('tr');
-                    descRow.classList.add('description-row');
-                    const descCell = document.createElement('td');
-                    descCell.colSpan = 7;
-                    descCell.textContent = `Description: ${description['Description_x']}`;
-                    descRow.appendChild(descCell);
-                    headerTableBody.appendChild(descRow);
-                }
-
-                // Add transaction data row
                 const headerRow = document.createElement('tr');
-                if (txn.isOpening) {
-                    headerRow.classList.add('transaction-header');
-                    headerRow.innerHTML = `
-                        <td>${formatDate(txn.date)}</td>
-                        <td>${txn.type}</td>
-                        <td></td>
-                        <td>${txn.total.toFixed(2)}</td>
-                        <td>${txn.received.toFixed(2)}</td>
-                        <td>${txn.balance.toFixed(2)}</td>
-                        <td>${runningBalance.toFixed(2)}</td>
-                    `;
-                } else {
-                    headerRow.innerHTML = `
-                        <td>${formatDate(txn.date)}</td>
-                        <td>${txn.type}</td>
-                        <td>${txn.refNo}</td>
-                        <td>${txn.total.toFixed(2)}</td>
-                        <td>${txn.received.toFixed(2)}</td>
-                        <td>${txn.balance.toFixed(2)}</td>
-                        <td>${runningBalance.toFixed(2)}</td>
-                    `;
-                }
+                headerRow.innerHTML = `
+                    <td>${formatDate(txn.date)}</td>
+                    <td>${formatValue(txn.type)}</td>
+                    <td>${formatValue(txn.refNo)}</td>
+                    <td>${formatValue(txn.amount)}</td>
+                    <td>${formatValue(txn.received)}</td>
+                    <td>${formatValue(txn.balance)}</td>
+                    <td>${formatValue(runningBalance)}</td>
+                `;
                 headerTableBody.appendChild(headerRow);
 
-                if (txn.items.length > 0) {
+                // Add item details if available
+                if (txn.itemName || txn.quantity || txn.amount) {
                     const itemTable = document.createElement('table');
                     itemTable.className = 'item-table';
                     
@@ -339,33 +349,25 @@
                     itemTable.appendChild(itemThead);
                     
                     const itemTbody = document.createElement('tbody');
-                    let itemTotalQty = 0;
-                    let itemTotalAmount = 0;
-                    
-                    txn.items.forEach((item, index) => {
-                        const itemRow = document.createElement('tr');
-                        itemRow.innerHTML = `
-                            <td>${index + 1}</td>
-                            <td>${item.name}</td>
-                            <td>${item.size}</td>
-                            <td>${item.quantity}</td>
-                            <td>${item.unit}</td>
-                            <td>${item.price.toFixed(2)}</td>
-                            <td class="amount-column">${item.amount.toFixed(2)}</td>
-                        `;
-                        itemTbody.appendChild(itemRow);
-                        
-                        itemTotalQty += parseFloat(item.quantity);
-                        itemTotalAmount += parseFloat(item.amount);
-                    });
+                    const itemRow = document.createElement('tr');
+                    itemRow.innerHTML = `
+                        <td>1</td>
+                        <td>${formatValue(txn.itemName)}</td>
+                        <td>${formatValue(txn.size)}</td>
+                        <td>${formatValue(txn.quantity)}</td>
+                        <td>${formatValue(txn.unit)}</td>
+                        <td>${formatValue(txn.price)}</td>
+                        <td class="amount-column">${formatValue(txn.amount)}</td>
+                    `;
+                    itemTbody.appendChild(itemRow);
                     
                     const totalRow = document.createElement('tr');
                     totalRow.className = 'total-row';
                     totalRow.innerHTML = `
                         <td colspan="3">Total</td>
-                        <td>${itemTotalQty.toFixed(2)}</td>
+                        <td>${formatValue(txn.quantity)}</td>
                         <td colspan="2"></td>
-                        <td class="amount-column">${itemTotalAmount.toFixed(2)}</td>
+                        <td class="amount-column">${formatValue(txn.amount)}</td>
                     `;
                     itemTbody.appendChild(totalRow);
                     
@@ -374,7 +376,6 @@
                 }
             });
 
-            // Add description above subtotal (duplicate)
             const uniqueDescriptions = [...new Set(allDescriptions.filter(Boolean))];
             if (uniqueDescriptions.length > 0) {
                 const descRowAboveTotal = document.createElement('tr');
@@ -386,7 +387,6 @@
                 summaryRowsContainer.appendChild(descRowAboveTotal);
             }
 
-            // Add subtotal row to summary section
             const subtotalRow = document.createElement('tr');
             subtotalRow.className = 'subtotal-row';
             subtotalRow.innerHTML = `
@@ -395,7 +395,6 @@
             `;
             summaryRowsContainer.appendChild(subtotalRow);
 
-            // Add final total row to summary section
             const finalTotalRow = document.createElement('tr');
             finalTotalRow.className = 'final-total-row';
             finalTotalRow.innerHTML = `
