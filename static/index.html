@@ -649,7 +649,8 @@
             
             displayColumns.forEach(header => {
                 const th = document.createElement('th');
-                th.textContent = header;
+                // th.textContent = header;
+                th.textContent = header === 'date' ? 'Date' : header;
                 th.className = 'sortable-header';
                 
                 if (header === currentSortColumn) {

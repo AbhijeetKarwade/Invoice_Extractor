@@ -112,6 +112,7 @@
             font-style: italic;
             margin-bottom: 10px;
         }
+        /*TEST1.HTML for Paid / Received are same values*/
         
         /* Define fixed column widths to match between tables */
         #headerTable th:nth-child(1),
@@ -198,15 +199,14 @@
     <script>
         function formatValue(value) {
             if (value === null || value === undefined || value === '') {
-                return 'Na';
+                return '0.00';
             }
             
-            // Check if value is numeric
             if (!isNaN(value) && value !== '') {
                 return parseFloat(value).toFixed(2);
             }
             
-            return value || 'Na';
+            return value || '0.00';
         }
 
         function extractPartyInfo(partyString) {
@@ -228,11 +228,18 @@
             return dateStr;
         }
 
+        function getPaymentValue(row) {
+            // Combine both Received and Paid values (both represent payments from client to supplier)
+            const received = parseFloat(row['Received'] || 0);
+            const paid = parseFloat(row['Paid'] || 0);
+            return received + paid;
+        }
+
         window.addEventListener('load', () => {
-            const filteredData = JSON.parse(sessionStorage.getItem('filteredData') || '[]');
-            const columnsToShow = JSON.parse(sessionStorage.getItem('columnsToShow') || '[]');
-            const dateRange = JSON.parse(sessionStorage.getItem('dateRange') || '{}');
-            const partyInfo = JSON.parse(sessionStorage.getItem('partyInfo') || '{}');
+            const filteredData = JSON.parse(sessionStorage.getItem('filteredData') || []);
+            const columnsToShow = JSON.parse(sessionStorage.getItem('columnsToShow') || []);
+            const dateRange = JSON.parse(sessionStorage.getItem('dateRange') || {});
+            const partyInfo = JSON.parse(sessionStorage.getItem('partyInfo') || {});
             
             document.getElementById('partyName').textContent = partyInfo.name || 'Na';
             document.getElementById('contactNo').textContent = partyInfo.mobile || 'Na';
@@ -253,18 +260,22 @@
                 return;
             }
 
-            // Group transactions by date and reference number to keep them separate
+            // Process all transactions
             const transactions = [];
             const allDescriptions = [];
             
             filteredData.forEach(row => {
+                const payment = getPaymentValue(row);
+                const amount = parseFloat(row['Amount'] || 0);
+                const balance = amount - payment;
+                
                 transactions.push({
                     date: row['date'],
                     type: row['Txn Type'] || row['Type'] || 'Sale',
                     refNo: row['Ref_No'] || 'N/A',
-                    amount: parseFloat(row['Amount'] || 0),
-                    received: parseFloat(row['Received'] || 0),
-                    balance: (parseFloat(row['Amount'] || 0) - parseFloat(row['Received'] || 0)),
+                    amount: amount,
+                    payment: payment,
+                    balance: balance,
                     description: row['Description_x'],
                     itemName: row['Item Name'],
                     size: row['Size'],
@@ -278,11 +289,12 @@
                 }
             });
 
+            // Calculate opening balance
             let openingBalance = 0;
-            // Check if there's an opening balance row
             const openingBalanceRow = filteredData.find(row => row['Ref_No'] === 'Opening Balance');
             if (openingBalanceRow) {
-                openingBalance = parseFloat(openingBalanceRow['Amount'] || 0) - parseFloat(openingBalanceRow['Received'] || 0);
+                const openingPayment = getPaymentValue(openingBalanceRow);
+                openingBalance = parseFloat(openingBalanceRow['Amount'] || 0) - openingPayment;
             }
 
             // Sort transactions by date
@@ -293,7 +305,7 @@
             });
 
             let runningBalance = openingBalance;
-            let grandTotal = runningBalance;
+            let grandTotal = openingBalance;
             
             // Add opening balance row if exists
             if (openingBalance !== 0) {
@@ -312,7 +324,7 @@
             
             // Add each transaction as a separate row
             transactions.forEach(txn => {
-                if (txn.refNo === 'Opening Balance') return; // Skip opening balance if it was already added
+                if (txn.refNo === 'Opening Balance') return;
                 
                 runningBalance += txn.balance;
                 grandTotal = runningBalance;
@@ -323,14 +335,14 @@
                     <td>${formatValue(txn.type)}</td>
                     <td>${formatValue(txn.refNo)}</td>
                     <td>${formatValue(txn.amount)}</td>
-                    <td>${formatValue(txn.received)}</td>
+                    <td>${formatValue(txn.payment)}</td>
                     <td>${formatValue(txn.balance)}</td>
                     <td>${formatValue(runningBalance)}</td>
                 `;
                 headerTableBody.appendChild(headerRow);
 
                 // Add item details if available
-                if (txn.itemName || txn.quantity || txn.amount) {
+                if (txn.itemName || txn.quantity) {
                     const itemTable = document.createElement('table');
                     itemTable.className = 'item-table';
                     
@@ -376,6 +388,7 @@
                 }
             });
 
+            // Add description if available
             const uniqueDescriptions = [...new Set(allDescriptions.filter(Boolean))];
             if (uniqueDescriptions.length > 0) {
                 const descRowAboveTotal = document.createElement('tr');
@@ -387,6 +400,7 @@
                 summaryRowsContainer.appendChild(descRowAboveTotal);
             }
 
+            // Add summary rows
             const subtotalRow = document.createElement('tr');
             subtotalRow.className = 'subtotal-row';
             subtotalRow.innerHTML = `
@@ -403,6 +417,7 @@
             `;
             summaryRowsContainer.appendChild(finalTotalRow);
 
+            // Clean up session storage
             sessionStorage.removeItem('filteredData');
             sessionStorage.removeItem('columnsToShow');
             sessionStorage.removeItem('dateRange');
